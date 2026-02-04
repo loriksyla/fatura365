@@ -14,12 +14,12 @@ const formatDate = (dateStr: string) => {
 // Maps theme colors to specific classes for headers and text accents
 const getThemeClasses = (color: string) => {
   switch (color) {
-    case 'red': return { bg: 'bg-red-700', text: 'text-red-700', light: 'text-red-100' };
-    case 'blue': return { bg: 'bg-blue-700', text: 'text-blue-700', light: 'text-blue-100' };
-    case 'orange': return { bg: 'bg-orange-600', text: 'text-orange-600', light: 'text-orange-100' };
-    case 'yellow': return { bg: 'bg-amber-500', text: 'text-amber-600', light: 'text-amber-100' };
-    case 'green': return { bg: 'bg-emerald-700', text: 'text-emerald-700', light: 'text-emerald-100' };
-    default: return { bg: 'bg-gray-800', text: 'text-gray-900', light: 'text-gray-100' };
+    case 'red': return { bg: 'bg-red-700', text: 'text-red-700', light: 'text-red-100', bgHex: '#b91c1c', textHex: '#b91c1c' };
+    case 'blue': return { bg: 'bg-blue-700', text: 'text-blue-700', light: 'text-blue-100', bgHex: '#1d4ed8', textHex: '#1d4ed8' };
+    case 'orange': return { bg: 'bg-orange-600', text: 'text-orange-600', light: 'text-orange-100', bgHex: '#ea580c', textHex: '#ea580c' };
+    case 'yellow': return { bg: 'bg-amber-500', text: 'text-amber-600', light: 'text-amber-100', bgHex: '#f59e0b', textHex: '#d97706' };
+    case 'green': return { bg: 'bg-emerald-700', text: 'text-emerald-700', light: 'text-emerald-100', bgHex: '#047857', textHex: '#047857' };
+    default: return { bg: 'bg-gray-800', text: 'text-gray-900', light: 'text-gray-100', bgHex: '#1f2937', textHex: '#111827' };
   }
 };
 
@@ -35,7 +35,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
   return (
     // A4 Dimensions: approx 210mm x 297mm.
     <div id="invoice-preview" className="bg-white mx-auto shadow-lg text-gray-800 text-sm print:shadow-none print:m-0 print:w-full relative flex flex-col" 
-         style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}>
+         style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', padding: '20mm', boxSizing: 'border-box', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
       
       {/* Header */}
       <div className="flex justify-between items-start mb-12">
@@ -74,7 +74,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
       {/* Address Info */}
       <div className="flex justify-between mb-12 gap-8">
         <div className="flex-1">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nga (Dërguesi)</h3>
+          <h3 className="inline-block text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-3 bg-gray-100 border border-gray-300 rounded px-2 py-1">
+            Nga (Dërguesi)
+          </h3>
           <p className="font-bold text-lg">{data.senderName}</p>
           {data.senderId && <p className="text-gray-600 text-xs mt-1"><span className="font-medium">NUI:</span> {data.senderId}</p>}
           {data.senderBank && <p className="text-gray-600 text-xs mt-1"><span className="font-medium">Llog. Bankare:</span> {data.senderBank}</p>}
@@ -82,7 +84,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
           <p className="text-gray-600">{data.senderEmail}</p>
         </div>
         <div className="flex-1 text-right">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Për (Marrësi)</h3>
+          <h3 className="inline-block text-xs font-extrabold text-gray-900 uppercase tracking-wider mb-3 bg-gray-100 border border-gray-300 rounded px-2 py-1">
+            Për (Marrësi)
+          </h3>
           <p className="font-bold text-lg">{data.receiverName}</p>
           {data.receiverId && <p className="text-gray-600 text-xs mt-1"><span className="font-medium">NUI:</span> {data.receiverId}</p>}
           {data.receiverBank && <p className="text-gray-600 text-xs mt-1"><span className="font-medium">Llog. Bankare:</span> {data.receiverBank}</p>}
@@ -94,11 +98,11 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
       {/* Table */}
       <table className="w-full mb-8 table-fixed">
         <thead>
-          <tr className={`${theme.bg} text-white`}>
-            <th className="py-2 px-4 text-left font-medium rounded-tl-md rounded-bl-md w-[45%]">Përshkrimi</th>
-            <th className="py-2 px-4 text-right font-medium w-[15%]">Sasia</th>
-            <th className="py-2 px-4 text-right font-medium w-[20%]">Çmimi</th>
-            <th className="py-2 px-4 text-right font-medium w-[20%] rounded-tr-md rounded-br-md">Totali</th>
+          <tr className={`${theme.bg} text-white`} style={{ backgroundColor: theme.bgHex, color: '#ffffff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+            <th className="py-2 px-4 text-left font-medium rounded-tl-md rounded-bl-md w-[45%]" style={{ backgroundColor: theme.bgHex, color: '#ffffff' }}>Përshkrimi</th>
+            <th className="py-2 px-4 text-right font-medium w-[15%]" style={{ backgroundColor: theme.bgHex, color: '#ffffff' }}>Sasia</th>
+            <th className="py-2 px-4 text-right font-medium w-[20%]" style={{ backgroundColor: theme.bgHex, color: '#ffffff' }}>Çmimi</th>
+            <th className="py-2 px-4 text-right font-medium w-[20%] rounded-tr-md rounded-br-md" style={{ backgroundColor: theme.bgHex, color: '#ffffff' }}>Totali</th>
           </tr>
         </thead>
         <tbody>
@@ -130,7 +134,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
               <span>- {data.discount.toFixed(2)} {currencySymbol}</span>
             </div>
            )}
-          <div className={`pt-2 flex justify-between font-bold text-lg mt-2 ${theme.text}`}>
+          <div className={`pt-2 flex justify-between font-bold text-lg mt-2 ${theme.text}`} style={{ color: theme.textHex }}>
             <span>Totali:</span>
             <span>{total.toFixed(2)} {currencySymbol}</span>
           </div>

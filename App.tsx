@@ -7,7 +7,18 @@ import { Dashboard } from './components/Dashboard';
 import { AdBanner } from './components/AdBanner';
 import { configureAmplify } from './services/amplifyConfig';
 import { getSessionUser, logoutUser } from './services/authService';
-import { addBusiness, addClient, addInvoice, listBusinesses, listClients, listInvoices } from './services/dataService';
+import {
+  addBusiness,
+  addClient,
+  addInvoice,
+  deleteBusiness,
+  deleteClient,
+  deleteInvoice,
+  listBusinesses,
+  listClients,
+  listInvoices,
+  updateInvoice,
+} from './services/dataService';
 
 type ViewState = 'editor' | 'auth' | 'dashboard';
 type AuthMode = 'login' | 'register';
@@ -24,6 +35,9 @@ const App: React.FC = () => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [isSavingInvoice, setIsSavingInvoice] = useState(false);
+  const [printPreviewInvoice, setPrintPreviewInvoice] = useState<InvoiceData | null>(null);
 
   useEffect(() => {
     const ready = configureAmplify();
@@ -52,21 +66,33 @@ const App: React.FC = () => {
       return;
     }
 
+    let retries = 0;
+
     const loadData = async () => {
       try {
         const [biz, cli, inv] = await Promise.all([listBusinesses(), listClients(), listInvoices()]);
         setBusinesses(biz);
         setClients(cli);
         setInvoices(inv);
+        setMessage('');
       } catch (err) {
-        setMessage(err instanceof Error ? err.message : 'Gabim gjatë ngarkimit të të dhënave.');
+        const errorMessage = err instanceof Error ? err.message : 'Gabim gjatë ngarkimit të të dhënave.';
+        if (errorMessage.toLowerCase().includes('no current user') && retries < 2) {
+          retries += 1;
+          setTimeout(loadData, 600);
+          return;
+        }
+        setMessage(errorMessage);
       }
     };
 
     loadData();
   }, [user]);
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    setMessage('Për pamje identike me ngjyra, aktivizo opsionin "Print backgrounds" në print dialog.');
+    window.print();
+  };
 
   const handleAuthNavigation = (mode: AuthMode) => {
     setAuthMode(mode);
@@ -85,11 +111,15 @@ const App: React.FC = () => {
     setUser(null);
     setView('editor');
     setInvoice(INITIAL_INVOICE);
+    setEditingInvoiceId(null);
+    setPrintPreviewInvoice(null);
     setMessage('U çkyçët me sukses.');
   };
 
   const handleDashboardCreateInvoice = (template?: Partial<InvoiceData>) => {
     setInvoice(template ? { ...INITIAL_INVOICE, ...template } : INITIAL_INVOICE);
+    setEditingInvoiceId(null);
+    setPrintPreviewInvoice(null);
     setView('editor');
   };
 
@@ -103,6 +133,16 @@ const App: React.FC = () => {
     setClients((prev) => [created, ...prev]);
   };
 
+  const handleDeleteBusiness = async (id: string) => {
+    await deleteBusiness(id);
+    setBusinesses((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    await deleteClient(id);
+    setClients((prev) => prev.filter((item) => item.id !== id));
+  };
+
   const handleSaveInvoice = async () => {
     if (!user) {
       setMessage('Duhet të hyni për ta ruajtur faturën.');
@@ -110,13 +150,81 @@ const App: React.FC = () => {
       return;
     }
 
+    setIsSavingInvoice(true);
     try {
-      const created = await addInvoice(invoice);
-      setInvoices((prev) => [created, ...prev]);
-      setMessage('Fatura u ruajt me sukses.');
+      if (editingInvoiceId) {
+        const updated = await updateInvoice(editingInvoiceId, invoice);
+        setInvoices((prev) => prev.map((item) => (item.id === editingInvoiceId ? updated : item)));
+        setMessage('Fatura u përditësua me sukses.');
+      } else {
+        const created = await addInvoice(invoice);
+        setInvoices((prev) => [created, ...prev]);
+        setMessage('Fatura u ruajt me sukses.');
+      }
+      setEditingInvoiceId(null);
+      setView('dashboard');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Gabim gjatë ruajtjes së faturës.');
+    } finally {
+      setIsSavingInvoice(false);
     }
+  };
+
+  const handleEditInvoice = (saved: SavedInvoice) => {
+    if (saved.snapshot) {
+      const senderName = saved.snapshot.senderName?.trim();
+      const senderId = saved.snapshot.senderId?.trim();
+      const senderEmail = saved.snapshot.senderEmail?.trim();
+      const businessLogo =
+        businesses.find((b) => senderId && b.nuis?.trim() === senderId)?.logo ||
+        businesses.find((b) => senderEmail && b.email?.trim() === senderEmail)?.logo ||
+        businesses.find((b) => senderName && b.name?.trim() === senderName)?.logo ||
+        null;
+      setInvoice({
+        ...INITIAL_INVOICE,
+        ...saved.snapshot,
+        logo: saved.snapshot.logo || businessLogo,
+      });
+      setEditingInvoiceId(saved.id);
+      setMessage(`Po editon faturën ${saved.number}.`);
+      setView('editor');
+      return;
+    }
+
+    setMessage('Kjo faturë është pa snapshot të plotë. Mund ta krijosh si të re.');
+  };
+
+  const handlePrintSavedInvoice = (saved: SavedInvoice) => {
+    if (!saved.snapshot) {
+      setMessage('Kjo faturë është pa të dhëna të plota për printim.');
+      return;
+    }
+
+    const senderName = saved.snapshot.senderName?.trim();
+    const senderId = saved.snapshot.senderId?.trim();
+    const senderEmail = saved.snapshot.senderEmail?.trim();
+    const businessLogo =
+      businesses.find((b) => senderId && b.nuis?.trim() === senderId)?.logo ||
+      businesses.find((b) => senderEmail && b.email?.trim() === senderEmail)?.logo ||
+      businesses.find((b) => senderName && b.name?.trim() === senderName)?.logo ||
+      null;
+
+    const previewData: InvoiceData = {
+      ...INITIAL_INVOICE,
+      ...saved.snapshot,
+      logo: saved.snapshot.logo || businessLogo,
+    };
+    setPrintPreviewInvoice(previewData);
+    setMessage(`Pamje printimi për ${saved.number}.`);
+  };
+
+  const handleDeleteInvoice = async (id: string) => {
+    await deleteInvoice(id);
+    setInvoices((prev) => prev.filter((item) => item.id !== id));
+    if (editingInvoiceId === id) {
+      setEditingInvoiceId(null);
+    }
+    setMessage('Fatura u fshi me sukses.');
   };
 
   const handleLogoClick = () => {
@@ -143,13 +251,13 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50">
       <nav className="bg-slate-900 text-white shadow-lg no-print sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2 sm:h-16 sm:py-0">
             <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogoClick}>
               <span className="font-bold text-xl tracking-tight">FATURA365</span>
               {user && <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-gray-300">Dashboard</span>}
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               {view === 'editor' && user && (
                 <button onClick={() => setView('dashboard')} className="text-sm text-slate-300 hover:text-white">
                   Dashboard
@@ -172,8 +280,8 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
-        {!!message && <div className="text-sm bg-blue-50 border border-blue-100 text-blue-700 rounded-lg p-3">{message}</div>}
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-4 no-print">
+        {!!message && <div className="text-sm bg-blue-50 border border-blue-100 text-blue-700 rounded-lg p-3 no-print break-words">{message}</div>}
 
         {view === 'auth' ? (
           <AuthPage mode={authMode} onSwitchMode={setAuthMode} onLogin={handleLoginSuccess} onCancel={() => setView('editor')} />
@@ -186,12 +294,27 @@ const App: React.FC = () => {
             invoices={invoices}
             onAddBusiness={handleAddBusiness}
             onAddClient={handleAddClient}
+            onDeleteBusiness={handleDeleteBusiness}
+            onDeleteClient={handleDeleteClient}
+            onEditInvoice={handleEditInvoice}
+            onDeleteInvoice={handleDeleteInvoice}
+            onPrintInvoice={handlePrintSavedInvoice}
           />
         ) : (
-          <div className="flex flex-col lg:flex-row gap-8 animate-fade-in">
-            <div className="w-full lg:w-1/2 flex flex-col gap-6 no-print">
+          <div className="flex flex-col lg:flex-row gap-5 sm:gap-8 animate-fade-in">
+            <div className="w-full lg:w-1/2 flex flex-col gap-4 sm:gap-6 no-print">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800">Redakto Faturën</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Redakto Faturën</h2>
+                {user && (
+                  <button
+                    type="button"
+                    disabled={isSavingInvoice}
+                    onClick={() => setView('dashboard')}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ← Kthehu te Dashboard
+                  </button>
+                )}
               </div>
 
               <InvoiceEditor data={invoice} onChange={setInvoice} savedClients={user ? clients : []} />
@@ -199,20 +322,28 @@ const App: React.FC = () => {
             </div>
 
             <div className="w-full lg:w-1/2">
-              <div className="sticky top-20 flex flex-col gap-6">
+              <div className="lg:sticky lg:top-20 flex flex-col gap-4 sm:gap-6">
                 <div className="flex items-center justify-between no-print">
-                  <h2 className="text-xl font-bold text-gray-800">Pamja Paraprake</h2>
-                  <div className="flex gap-2">
-                    <button onClick={handleSaveInvoice} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                      Ruaj
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-800">Pamja Paraprake</h2>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      onClick={handleSaveInvoice}
+                      disabled={isSavingInvoice}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSavingInvoice ? 'Duke ruajtur...' : editingInvoiceId ? 'Ruaj Ndryshimet' : 'Ruaj'}
                     </button>
-                    <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    <button
+                      onClick={handlePrint}
+                      disabled={isSavingInvoice}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       Printo / PDF
                     </button>
                   </div>
                 </div>
 
-                <div className="border border-gray-200 shadow-xl print:border-none print:shadow-none">
+                <div className="border border-gray-200 shadow-lg sm:shadow-xl print:border-none print:shadow-none overflow-x-auto">
                   <InvoicePreview data={invoice} />
                 </div>
               </div>
@@ -220,6 +351,54 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+      {printPreviewInvoice && (
+        <div className="fixed inset-0 z-[115] bg-slate-900/60 backdrop-blur-sm no-print p-3 sm:p-6">
+          <div className="max-w-6xl mx-auto h-full flex flex-col">
+            <div className="flex items-center justify-between mb-3 text-white">
+              <h3 className="font-semibold">Preview para printimit</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="px-3 py-2 text-sm rounded-md bg-emerald-600 hover:bg-emerald-500"
+                >
+                  Printo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintPreviewInvoice(null)}
+                  className="px-3 py-2 text-sm rounded-md bg-slate-700 hover:bg-slate-600"
+                >
+                  Mbyll
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto rounded-lg border border-slate-700 bg-slate-800/40 p-2 sm:p-4">
+              <div className="mx-auto w-full max-w-[210mm]">
+                <InvoicePreview data={printPreviewInvoice} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {(view === 'editor' || !!printPreviewInvoice) && (
+        <section className="print-only">
+          <InvoicePreview data={printPreviewInvoice || invoice} />
+        </section>
+      )}
+      {isSavingInvoice && (
+        <div className="fixed inset-0 z-[120] bg-slate-900/35 backdrop-blur-sm flex items-center justify-center no-print">
+          <div className="bg-white rounded-xl shadow-2xl px-8 py-6 flex flex-col items-center gap-3 min-w-64">
+            <div className="h-10 w-10 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin" />
+            <p className="text-slate-900 font-semibold text-sm">Duke ruajtur faturën...</p>
+            <div className="flex gap-1">
+              <span className="h-2 w-2 bg-emerald-500 rounded-full animate-bounce" />
+              <span className="h-2 w-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:120ms]" />
+              <span className="h-2 w-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:240ms]" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

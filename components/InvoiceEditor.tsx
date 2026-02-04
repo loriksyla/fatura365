@@ -1,5 +1,6 @@
 import React, { ChangeEvent, useState, useRef, useEffect } from 'react';
 import { InvoiceData, LineItem, Client } from '../types';
+import { compressImageToDataUrl } from '../services/imageService';
 
 interface InvoiceEditorProps {
   data: InvoiceData;
@@ -99,19 +100,22 @@ const DatePicker: React.FC<{
 };
 
 export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ data, onChange, savedClients = [] }) => {
+  const displayNumber = (value: number) => (value === 0 ? '' : String(value));
 
   const handleInputChange = (field: keyof InvoiceData, value: any) => {
     onChange({ ...data, [field]: value });
   };
 
-  const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleInputChange('logo', reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageToDataUrl(file);
+        handleInputChange('logo', compressed);
+      } catch (err) {
+        console.error(err);
+        alert('Nuk u kompresua logoja. Provo një file tjetër.');
+      }
     }
   };
 
@@ -196,6 +200,15 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ data, onChange, sa
              )}
             <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
           </label>
+          {data.logo && (
+            <button
+              type="button"
+              onClick={() => handleInputChange('logo', null)}
+              className="text-xs text-red-600 hover:text-red-700"
+            >
+              Hiq logon
+            </button>
+          )}
         </div>
         
         <div className="space-y-3">
@@ -353,7 +366,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ data, onChange, sa
               <label className="md:hidden text-xs font-semibold text-gray-500 mb-1 block">Sasia</label>
               <input 
                 type="number" placeholder="Sasia"
-                value={item.quantity}
+                value={displayNumber(item.quantity)}
                 onChange={(e) => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)}
                 className="block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm p-2 text-right focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
               />
@@ -362,7 +375,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ data, onChange, sa
               <label className="md:hidden text-xs font-semibold text-gray-500 mb-1 block">Çmimi pa TVSH</label>
               <input 
                 type="number" placeholder="Çmimi"
-                value={item.rate}
+                value={displayNumber(item.rate)}
                 onChange={(e) => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)}
                 className="block w-full rounded-md border-gray-300 bg-white text-gray-900 shadow-sm p-2 text-right focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
               />
@@ -428,7 +441,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ data, onChange, sa
             <label className="text-sm font-medium text-gray-700">TVSH (%)</label>
             <input 
               type="number" 
-              value={data.taxRate}
+              value={displayNumber(data.taxRate)}
               onChange={(e) => handleInputChange('taxRate', parseFloat(e.target.value) || 0)}
               className="block w-32 rounded-md border-gray-300 bg-gray-50 text-gray-900 shadow-sm p-2 text-right focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
             />
@@ -437,7 +450,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({ data, onChange, sa
             <label className="text-sm font-medium text-gray-700">Zbritje (Shuma)</label>
             <input 
               type="number" 
-              value={data.discount}
+              value={displayNumber(data.discount)}
               onChange={(e) => handleInputChange('discount', parseFloat(e.target.value) || 0)}
               className="block w-32 rounded-md border-gray-300 bg-gray-50 text-gray-900 shadow-sm p-2 text-right focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
             />

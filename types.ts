@@ -86,6 +86,7 @@ export interface SavedInvoice {
   date: string;
   amount: number;
   currency: 'EUR' | 'ALL' | 'USD';
+  snapshot?: InvoiceData | null;
 }
 
 export interface AppUser {

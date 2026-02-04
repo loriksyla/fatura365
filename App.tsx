@@ -1,122 +1,146 @@
-import React, { useState, useCallback } from 'react';
-import { InvoiceData, INITIAL_INVOICE, Business, Client } from './types';
+import React, { useEffect, useState } from 'react';
+import { InvoiceData, INITIAL_INVOICE, Business, Client, SavedInvoice, AppUser } from './types';
 import { InvoiceEditor } from './components/InvoiceEditor';
 import { InvoicePreview } from './components/InvoicePreview';
 import { AuthPage } from './components/AuthPage';
 import { Dashboard } from './components/Dashboard';
+import { AdBanner } from './components/AdBanner';
+import { configureAmplify } from './services/amplifyConfig';
+import { getSessionUser, logoutUser } from './services/authService';
+import { addBusiness, addClient, addInvoice, listBusinesses, listClients, listInvoices } from './services/dataService';
 
 type ViewState = 'editor' | 'auth' | 'dashboard';
 type AuthMode = 'login' | 'register';
 
-interface User {
-  name: string;
-  email: string;
-}
-
-// Mock Data Moved to App level so it can be shared
-const MOCK_BUSINESSES_DATA: Business[] = [
-  {
-    id: '1',
-    name: 'Tech Solutions Sh.p.k',
-    nuis: 'L12345678A',
-    address: 'Rr. e Kavajës, Tiranë',
-    bank: 'BKT: AL122020000000000000',
-    email: 'info@techsolutions.al'
-  },
-  {
-    id: '2',
-    name: 'Design Studio',
-    nuis: 'K98765432B',
-    address: 'Bulevardi Zogu I, Tiranë',
-    bank: 'Raiffeisen: AL551234567890',
-    email: 'hello@designstudio.al'
-  }
-];
-
-const MOCK_CLIENTS_DATA: Client[] = [
-  {
-    id: '1',
-    name: 'Alpha Corp',
-    nuis: 'J12345678L',
-    address: 'Durrës, Shqipëri',
-    email: 'info@alpha.com'
-  },
-  {
-    id: '2',
-    name: 'Beta Ltd',
-    nuis: 'K87654321M',
-    address: 'Prishtinë, Kosovë',
-    email: 'contact@beta.com'
-  }
-];
-
 const App: React.FC = () => {
+  const [amplifyReady, setAmplifyReady] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceData>(INITIAL_INVOICE);
-  
-  // Shared Data State
-  const [businesses, setBusinesses] = useState<Business[]>(MOCK_BUSINESSES_DATA);
-  const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS_DATA);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [invoices, setInvoices] = useState<SavedInvoice[]>([]);
 
-  // Navigation & Auth State
   const [view, setView] = useState<ViewState>('editor');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState('');
 
-  // Derived calculations for services
-  const calculateTotal = useCallback(() => {
-    const subTotal = invoice.items.reduce((sum, item) => sum + (item.quantity * item.rate), 0);
-    const taxAmount = (subTotal * invoice.taxRate) / 100;
-    return subTotal + taxAmount - invoice.discount;
-  }, [invoice]);
+  useEffect(() => {
+    const ready = configureAmplify();
+    setAmplifyReady(ready);
 
-  const handlePrint = () => {
-    window.print();
-  };
+    if (!ready) {
+      setIsLoading(false);
+      return;
+    }
+
+    const bootstrap = async () => {
+      const currentUser = await getSessionUser();
+      setUser(currentUser);
+      setView(currentUser ? 'dashboard' : 'editor');
+      setIsLoading(false);
+    };
+
+    bootstrap();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setBusinesses([]);
+      setClients([]);
+      setInvoices([]);
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        const [biz, cli, inv] = await Promise.all([listBusinesses(), listClients(), listInvoices()]);
+        setBusinesses(biz);
+        setClients(cli);
+        setInvoices(inv);
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : 'Gabim gjatë ngarkimit të të dhënave.');
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  const handlePrint = () => window.print();
 
   const handleAuthNavigation = (mode: AuthMode) => {
     setAuthMode(mode);
     setView('auth');
   };
 
-  const handleLoginSuccess = (loggedInUser: User) => {
-    setUser(loggedInUser);
+  const handleLoginSuccess = async (loggedInUser: AppUser) => {
+    const currentUser = await getSessionUser();
+    setUser(currentUser || loggedInUser);
     setView('dashboard');
+    setMessage('Hyrja u krye me sukses.');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutUser();
     setUser(null);
-    setView('editor'); 
+    setView('editor');
     setInvoice(INITIAL_INVOICE);
+    setMessage('U çkyçët me sukses.');
   };
 
   const handleDashboardCreateInvoice = (template?: Partial<InvoiceData>) => {
-    if (template) {
-      setInvoice({ ...INITIAL_INVOICE, ...template });
-    } else {
-      setInvoice(INITIAL_INVOICE);
-    }
+    setInvoice(template ? { ...INITIAL_INVOICE, ...template } : INITIAL_INVOICE);
     setView('editor');
   };
 
-  const handleAddBusiness = (newBiz: Business) => {
-    setBusinesses([...businesses, newBiz]);
+  const handleAddBusiness = async (newBiz: Omit<Business, 'id'>) => {
+    const created = await addBusiness(newBiz);
+    setBusinesses((prev) => [created, ...prev]);
   };
 
-  const handleAddClient = (newClient: Client) => {
-    setClients([...clients, newClient]);
+  const handleAddClient = async (newClient: Omit<Client, 'id'>) => {
+    const created = await addClient(newClient);
+    setClients((prev) => [created, ...prev]);
   };
 
-  const handleLogoClick = () => {
-    if (user) {
-      setView('dashboard');
-    } else {
-      setView('editor');
+  const handleSaveInvoice = async () => {
+    if (!user) {
+      setMessage('Duhet të hyni për ta ruajtur faturën.');
+      handleAuthNavigation('login');
+      return;
+    }
+
+    try {
+      const created = await addInvoice(invoice);
+      setInvoices((prev) => [created, ...prev]);
+      setMessage('Fatura u ruajt me sukses.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Gabim gjatë ruajtjes së faturës.');
     }
   };
 
+  const handleLogoClick = () => {
+    setView(user ? 'dashboard' : 'editor');
+  };
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-slate-600">Duke ngarkuar...</div>;
+  }
+
+  if (!amplifyReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-xl p-6">
+          <h1 className="text-xl font-bold text-slate-900">Amplify nuk është konfiguruar ende</h1>
+          <p className="text-slate-600 mt-2">Ekzekuto setup-in e Amplify dhe zëvendëso `amplify_outputs.json` me output-in real.</p>
+          <pre className="bg-slate-900 text-slate-100 text-sm p-4 rounded-lg mt-4 overflow-auto">npm i{`\n`}npm run amplify:sandbox</pre>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Navbar */}
       <nav className="bg-slate-900 text-white shadow-lg no-print sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -124,127 +148,74 @@ const App: React.FC = () => {
               <span className="font-bold text-xl tracking-tight">FATURA365</span>
               {user && <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-gray-300">Dashboard</span>}
             </div>
-            
-            <div className="flex items-center gap-4">
-               {/* Show "Back to Dashboard" if in editor mode and logged in */}
-               {view === 'editor' && user && (
-                 <button 
-                    onClick={() => setView('dashboard')}
-                    className="text-sm text-slate-300 hover:text-white transition-colors mr-2"
-                  >
-                    <i className="fas fa-arrow-left mr-1"></i> Dashboard
-                  </button>
-               )}
 
-               {view === 'editor' && !user && (
-                 <>
-                  <button 
-                    onClick={() => setInvoice(INITIAL_INVOICE)}
-                    className="text-sm text-slate-300 hover:text-white transition-colors hidden sm:block"
-                  >
-                    Pastro
-                  </button>
-                   <div className="h-4 w-px bg-slate-700 hidden sm:block"></div>
-                 </>
-               )}
-               
-               {user ? (
-                 <div className="flex items-center gap-4">
-                    <span className="text-sm text-emerald-400 font-medium hidden sm:block">
-                      <i className="fas fa-user-circle mr-2"></i>
-                      {user.name}
-                    </span>
-                    <button 
-                      onClick={handleLogout}
-                      className="text-sm text-slate-300 hover:text-white transition-colors"
-                    >
-                      Dil
-                    </button>
-                 </div>
-               ) : (
-                 <div className="flex items-center gap-3">
-                   <button 
-                     onClick={() => handleAuthNavigation('login')}
-                     className="text-sm font-medium text-slate-200 hover:text-white transition-colors px-3 py-2 rounded-md hover:bg-slate-800"
-                   >
-                     Hyni
-                   </button>
-                   <button 
-                     onClick={() => handleAuthNavigation('register')}
-                     className="text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-md shadow-md transition-all transform hover:-translate-y-0.5"
-                   >
-                     Regjistrohu
-                   </button>
-                 </div>
-               )}
+            <div className="flex items-center gap-4">
+              {view === 'editor' && user && (
+                <button onClick={() => setView('dashboard')} className="text-sm text-slate-300 hover:text-white">
+                  Dashboard
+                </button>
+              )}
+
+              {user ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-emerald-400 font-medium hidden sm:block">{user.email}</span>
+                  <button onClick={handleLogout} className="text-sm text-slate-300 hover:text-white">Dil</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button onClick={() => handleAuthNavigation('login')} className="text-sm font-medium text-slate-200 hover:text-white px-3 py-2 rounded-md">Hyni</button>
+                  <button onClick={() => handleAuthNavigation('register')} className="text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-md">Regjistrohu</button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+        {!!message && <div className="text-sm bg-blue-50 border border-blue-100 text-blue-700 rounded-lg p-3">{message}</div>}
+
         {view === 'auth' ? (
-          <AuthPage 
-            mode={authMode} 
-            onSwitchMode={setAuthMode}
-            onLogin={handleLoginSuccess}
-            onCancel={() => setView('editor')}
-          />
+          <AuthPage mode={authMode} onSwitchMode={setAuthMode} onLogin={handleLoginSuccess} onCancel={() => setView('editor')} />
         ) : view === 'dashboard' && user ? (
-          <Dashboard 
-            user={user} 
+          <Dashboard
+            user={user}
             onCreateInvoice={handleDashboardCreateInvoice}
             businesses={businesses}
             clients={clients}
+            invoices={invoices}
             onAddBusiness={handleAddBusiness}
             onAddClient={handleAddClient}
           />
         ) : (
           <div className="flex flex-col lg:flex-row gap-8 animate-fade-in">
-            {/* Left Side: Editor */}
             <div className="w-full lg:w-1/2 flex flex-col gap-6 no-print">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800">Redakto Faturën</h2>
               </div>
-              
-              <InvoiceEditor 
-                data={invoice} 
-                onChange={setInvoice} 
-                savedClients={user ? clients : []} // Only pass saved clients if user is logged in
-              />
-              
+
+              <InvoiceEditor data={invoice} onChange={setInvoice} savedClients={user ? clients : []} />
+              <AdBanner />
             </div>
 
-            {/* Right Side: Preview */}
             <div className="w-full lg:w-1/2">
-               <div className="sticky top-20 flex flex-col gap-6">
-                  <div className="flex items-center justify-between no-print">
-                     <h2 className="text-xl font-bold text-gray-800">Pamja Paraprake</h2>
-                     <div className="flex gap-2">
-                        <button 
-                          onClick={handlePrint}
-                          className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md shadow-sm transition-colors flex items-center text-sm font-medium"
-                        >
-                          <i className="fas fa-download mr-2 text-gray-500"></i> Shkarko PDF
-                        </button>
-                         <button 
-                          onClick={handlePrint}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow-sm transition-colors flex items-center text-sm font-medium"
-                        >
-                          <i className="fas fa-print mr-2"></i> Printo
-                        </button>
-                     </div>
+              <div className="sticky top-20 flex flex-col gap-6">
+                <div className="flex items-center justify-between no-print">
+                  <h2 className="text-xl font-bold text-gray-800">Pamja Paraprake</h2>
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveInvoice} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                      Ruaj
+                    </button>
+                    <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                      Printo / PDF
+                    </button>
                   </div>
+                </div>
 
-                  {/* The Preview Component */}
-                  <div className="border border-gray-200 shadow-xl print:border-none print:shadow-none">
-                    <InvoicePreview data={invoice} />
-                  </div>
-                  
-                  <p className="text-center text-xs text-gray-400 no-print">
-                    Këshillë: Përdorni butonin "Shkarko PDF" për të ruajtur faturën. Opsioni "Save as PDF" do të shfaqet në dritaren e printimit.
-                  </p>
-               </div>
+                <div className="border border-gray-200 shadow-xl print:border-none print:shadow-none">
+                  <InvoicePreview data={invoice} />
+                </div>
+              </div>
             </div>
           </div>
         )}

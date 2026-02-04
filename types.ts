@@ -8,39 +8,38 @@ export interface LineItem {
 export interface InvoiceData {
   invoiceNumber: string;
   date: string;
-  dueDate: string; // Optional
+  dueDate: string;
   poNumber: string;
-  
+
   senderName: string;
-  senderId: string; // NIPT/NUIS
-  senderBank: string; // Bank Account
+  senderId: string;
+  senderBank: string;
   senderAddress: string;
   senderEmail: string;
-  
+
   receiverName: string;
-  receiverId: string; // NIPT/NUIS
-  receiverBank: string; // Bank Account
+  receiverId: string;
+  receiverBank: string;
   receiverAddress: string;
   receiverEmail: string;
-  
+
   currency: 'EUR' | 'ALL' | 'USD';
-  taxRate: number; // Percentage
-  discount: number; // Fixed amount
-  
-  logo: string | null; // Base64 or URL
-  
+  taxRate: number;
+  discount: number;
+
+  logo: string | null;
   items: LineItem[];
-  
+
   notes: string;
   terms: string;
-  
+
   themeColor: 'gray' | 'red' | 'blue' | 'orange' | 'yellow' | 'green';
 }
 
 export const INITIAL_INVOICE: InvoiceData = {
   invoiceNumber: '',
   date: new Date().toISOString().split('T')[0],
-  dueDate: '', // Empty by default
+  dueDate: '',
   poNumber: '',
   senderName: '',
   senderId: '',
@@ -56,12 +55,10 @@ export const INITIAL_INVOICE: InvoiceData = {
   taxRate: 18,
   discount: 0,
   logo: null,
-  items: [
-    { id: '1', description: '', quantity: 1, rate: 0 },
-  ],
+  items: [{ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0 }],
   notes: '',
   terms: '',
-  themeColor: 'gray'
+  themeColor: 'gray',
 };
 
 export interface Business {
@@ -88,5 +85,11 @@ export interface SavedInvoice {
   client: string;
   date: string;
   amount: number;
-  currency: string;
+  currency: 'EUR' | 'ALL' | 'USD';
+}
+
+export interface AppUser {
+  id: string;
+  name: string;
+  email: string;
 }

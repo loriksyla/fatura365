@@ -1,0 +1,33 @@
+type Business @model @auth(rules: [{allow: owner, ownerField: "owner"}])
+{
+  name: String!
+  nuis: String!
+  address: String!
+  bank: String
+  email: AWSEmail
+  logo: String
+}
+
+type Client @model @auth(rules: [{allow: owner, ownerField: "owner"}])
+{
+  name: String!
+  nuis: String
+  address: String
+  email: AWSEmail
+}
+
+type Invoice @model @auth(rules: [{allow: owner, ownerField: "owner"}])
+{
+  number: String!
+  client: String!
+  date: AWSDate!
+  amount: Float!
+  currency: InvoiceCurrency
+  snapshot: AWSJSON!
+}
+
+enum InvoiceCurrency {
+  EUR
+  ALL
+  USD
+}

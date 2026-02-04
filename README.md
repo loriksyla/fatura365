@@ -1,20 +1,69 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# FATURA365
 
-# Run and deploy your AI Studio app
+Platformë për gjenerimin e faturave me React + AWS Amplify (Auth + Data), gati për deploy në `fatura365.com`.
 
-This contains everything you need to run your app locally.
+## 1) Setup lokal
 
-View your app in AI Studio: https://ai.studio/apps/drive/1IE1XB51N913R_YSIJ5th_wSptuIqw-fA
+```bash
+npm install
+npm run amplify:sandbox
+npm run dev
+```
 
-## Run Locally
+Pas `amplify:sandbox`, Amplify gjeneron konfigurimin. Nëse nuk është shkruar automatikisht, kopjo output në `amplify_outputs.json`.
 
-**Prerequisites:**  Node.js
+## 2) Variablat e ambientit
 
+Krijo/plotëso `.env.local`:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```env
+GEMINI_API_KEY=...
+VITE_ADSENSE_CLIENT_ID=ca-pub-xxxxxxxxxxxxxxxx
+VITE_ADSENSE_SLOT_ID=1234567890
+```
+
+## 3) Backend (Amplify Gen 2)
+
+Ky repo përfshin:
+- `amplify/auth/resource.ts` (email sign in/sign up)
+- `amplify/data/resource.ts` (Business, Client, Invoice me owner auth)
+- `amplify/backend.ts`
+
+Deploy backend + frontend nga Amplify Console ose me CLI:
+
+```bash
+npm run amplify:deploy
+npm run build
+```
+
+## 4) Lidhja me GitHub (arsyeja pse commit s'u pa)
+
+Commit-i lokal nuk shfaqet në GitHub pa `remote`.
+
+```bash
+git remote add origin https://github.com/<username>/<repo>.git
+git branch -M main
+git push -u origin main
+```
+
+Kontrollo remotes:
+
+```bash
+git remote -v
+```
+
+## 5) Domain `fatura365.com`
+
+Në Amplify Console:
+1. Host app nga branch `main`
+2. **Domain management** -> Add domain -> `fatura365.com`
+3. Shto records DNS te regjistrari i domain-it sipas Amplify
+4. Aktivizo HTTPS (AWS Certificate Manager automatik)
+
+## 6) Ads
+
+`components/AdBanner.tsx` përdor Google AdSense nëse janë vendosur:
+- `VITE_ADSENSE_CLIENT_ID`
+- `VITE_ADSENSE_SLOT_ID`
+
+Nëse mungojnë, ads nuk shfaqen.

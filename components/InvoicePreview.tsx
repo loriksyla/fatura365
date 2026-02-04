@@ -41,7 +41,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
       <div className="flex justify-between items-start mb-12">
         <div className="w-1/2">
            {data.logo ? (
-             <img src={data.logo} alt="Logo" className="h-32 w-auto object-contain mb-4" />
+             <img src={data.logo} alt="Logo" className="h-56 w-auto object-contain mb-4" />
            ) : (
              <h1 className="text-3xl font-bold text-gray-900 mb-4">{data.senderName || 'Emri Kompanisë'}</h1>
            )}

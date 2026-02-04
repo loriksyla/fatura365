@@ -87,6 +87,25 @@ export const addBusiness = async (input: Omit<Business, 'id'>): Promise<Business
   return toBusiness(data);
 };
 
+export const updateBusiness = async (id: string, input: Omit<Business, 'id'>): Promise<Business> => {
+  const normalizedEmail = input.email?.trim();
+  const normalizedBank = input.bank?.trim();
+  const normalizedLogo = input.logo?.trim();
+
+  const { data, errors } = await api.models.Business.update({
+    id,
+    name: input.name.trim(),
+    nuis: input.nuis.trim(),
+    address: input.address.trim(),
+    bank: normalizedBank || undefined,
+    email: normalizedEmail || undefined,
+    logo: normalizedLogo || undefined,
+  });
+
+  if (errors?.length || !data) throw new Error(mapServiceError('Nuk u përditësua biznesi.', errors?.[0]?.message));
+  return toBusiness(data);
+};
+
 export const deleteBusiness = async (id: string): Promise<void> => {
   const { errors } = await api.models.Business.delete({ id });
   if (errors?.length) throw new Error(mapServiceError('Nuk u fshi biznesi.', errors[0].message));
@@ -111,6 +130,23 @@ export const addClient = async (input: Omit<Client, 'id'>): Promise<Client> => {
   });
 
   if (errors?.length || !data) throw new Error(mapServiceError('Nuk u ruajt klienti.', errors?.[0]?.message));
+  return toClient(data);
+};
+
+export const updateClient = async (id: string, input: Omit<Client, 'id'>): Promise<Client> => {
+  const normalizedEmail = input.email?.trim();
+  const normalizedNuis = input.nuis?.trim();
+  const normalizedAddress = input.address?.trim();
+
+  const { data, errors } = await api.models.Client.update({
+    id,
+    name: input.name.trim(),
+    nuis: normalizedNuis || undefined,
+    address: normalizedAddress || undefined,
+    email: normalizedEmail || undefined,
+  });
+
+  if (errors?.length || !data) throw new Error(mapServiceError('Nuk u përditësua klienti.', errors?.[0]?.message));
   return toClient(data);
 };
 

@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useState, useRef, useEffect } from 'react';
+import React, { ChangeEvent } from 'react';
 import { InvoiceData, LineItem, Client } from '../types';
 import { compressImageToDataUrl } from '../services/imageService';
 
@@ -19,81 +19,33 @@ const DatePicker: React.FC<{
   value: string;
   onChange: (val: string) => void;
 }> = ({ label, value, onChange }) => {
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const handleToday = () => {
     const today = new Date().toISOString().split('T')[0];
     onChange(today);
-    setShowMenu(false);
   };
 
   const handleTomorrow = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     onChange(d.toISOString().split('T')[0]);
-    setShowMenu(false);
   };
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <div className="relative">
-        <button
-          onClick={() => setShowMenu(!showMenu)}
-          className="w-full text-right bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 flex justify-between items-center shadow-sm"
-        >
-          <span className={!value ? "text-gray-400" : "font-medium"}>
-             {value ? formatDateForDisplay(value) : 'Zgjidh datën'}
-          </span>
-          <i className="fas fa-calendar-alt text-gray-400 ml-2"></i>
-        </button>
-
-        {showMenu && (
-          <div className="absolute right-0 z-20 mt-1 w-full sm:w-56 bg-white shadow-xl rounded-md py-1 border border-gray-200 text-sm animate-fade-in">
-            <button
-              onClick={handleToday}
-              className="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
-            >
-              <i className="fas fa-sun mr-3 text-amber-500 w-4"></i> Sot
-            </button>
-            <button
-              onClick={handleTomorrow}
-              className="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
-            >
-              <i className="fas fa-calendar-plus mr-3 text-blue-500 w-4"></i> Nesër
-            </button>
-            <div className="relative border-t border-gray-100 mt-1 pt-1">
-               <input
-                type="date"
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                onChange={(e) => {
-                  onChange(e.target.value);
-                  setShowMenu(false);
-                }}
-              />
-              <button className="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors">
-                <i className="fas fa-edit mr-3 text-gray-400 w-4"></i> Zgjidh nga kalendari...
-              </button>
-            </div>
-             <button
-              onClick={() => { onChange(''); setShowMenu(false); }}
-              className="flex items-center w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 border-t border-gray-100 mt-1 transition-colors"
-            >
-              <i className="fas fa-times mr-3 w-4"></i> Pastro
-            </button>
-          </div>
-        )}
+      <div className="space-y-2">
+        <input
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={handleToday} className="px-2.5 py-1.5 text-xs rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700">Sot</button>
+          <button type="button" onClick={handleTomorrow} className="px-2.5 py-1.5 text-xs rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700">Nesër</button>
+          <button type="button" onClick={() => onChange('')} className="px-2.5 py-1.5 text-xs rounded-md bg-red-50 hover:bg-red-100 text-red-600">Pastro</button>
+          <span className="text-xs text-gray-500 ml-auto">{value ? formatDateForDisplay(value) : 'Pa datë'}</span>
+        </div>
       </div>
     </div>
   );

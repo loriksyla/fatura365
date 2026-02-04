@@ -17,6 +17,8 @@ import {
   listBusinesses,
   listClients,
   listInvoices,
+  updateBusiness,
+  updateClient,
   updateInvoice,
 } from './services/dataService';
 
@@ -89,10 +91,7 @@ const App: React.FC = () => {
     loadData();
   }, [user]);
 
-  const handlePrint = () => {
-    setMessage('Për pamje identike me ngjyra, aktivizo opsionin "Print backgrounds" në print dialog.');
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   const handleAuthNavigation = (mode: AuthMode) => {
     setAuthMode(mode);
@@ -131,6 +130,16 @@ const App: React.FC = () => {
   const handleAddClient = async (newClient: Omit<Client, 'id'>) => {
     const created = await addClient(newClient);
     setClients((prev) => [created, ...prev]);
+  };
+
+  const handleUpdateBusiness = async (id: string, input: Omit<Business, 'id'>) => {
+    const updated = await updateBusiness(id, input);
+    setBusinesses((prev) => prev.map((item) => (item.id === id ? updated : item)));
+  };
+
+  const handleUpdateClient = async (id: string, input: Omit<Client, 'id'>) => {
+    const updated = await updateClient(id, input);
+    setClients((prev) => prev.map((item) => (item.id === id ? updated : item)));
   };
 
   const handleDeleteBusiness = async (id: string) => {
@@ -281,7 +290,7 @@ const App: React.FC = () => {
       </nav>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-4 no-print">
-        {!!message && <div className="text-sm bg-blue-50 border border-blue-100 text-blue-700 rounded-lg p-3 no-print break-words">{message}</div>}
+        {!!message.trim() && <div className="text-sm bg-blue-50 border border-blue-100 text-blue-700 rounded-lg p-3 no-print break-words">{message}</div>}
 
         {view === 'auth' ? (
           <AuthPage mode={authMode} onSwitchMode={setAuthMode} onLogin={handleLoginSuccess} onCancel={() => setView('editor')} />
@@ -294,6 +303,8 @@ const App: React.FC = () => {
             invoices={invoices}
             onAddBusiness={handleAddBusiness}
             onAddClient={handleAddClient}
+            onUpdateBusiness={handleUpdateBusiness}
+            onUpdateClient={handleUpdateClient}
             onDeleteBusiness={handleDeleteBusiness}
             onDeleteClient={handleDeleteClient}
             onEditInvoice={handleEditInvoice}
@@ -301,8 +312,8 @@ const App: React.FC = () => {
             onPrintInvoice={handlePrintSavedInvoice}
           />
         ) : (
-          <div className="flex flex-col lg:flex-row gap-5 sm:gap-8 animate-fade-in">
-            <div className="w-full lg:w-1/2 flex flex-col gap-4 sm:gap-6 no-print">
+          <div className="flex flex-col xl:flex-row gap-5 sm:gap-8 animate-fade-in">
+            <div className="w-full xl:w-1/2 flex flex-col gap-4 sm:gap-6 no-print">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Redakto Faturën</h2>
                 {user && (
@@ -321,8 +332,8 @@ const App: React.FC = () => {
               <AdBanner />
             </div>
 
-            <div className="w-full lg:w-1/2">
-              <div className="lg:sticky lg:top-20 flex flex-col gap-4 sm:gap-6">
+            <div className="w-full xl:w-1/2">
+              <div className="xl:sticky xl:top-20 flex flex-col gap-4 sm:gap-6">
                 <div className="flex items-center justify-between no-print">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-800">Pamja Paraprake</h2>
                   <div className="flex flex-wrap justify-end gap-2">

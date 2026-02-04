@@ -24,7 +24,7 @@ const resizeDimensions = (width: number, height: number) => {
   };
 };
 
-const canvasToBlob = (canvas: HTMLCanvasElement, quality: number): Promise<Blob> =>
+const canvasToBlob = (canvas: HTMLCanvasElement, quality: number, format: string): Promise<Blob> =>
   new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -34,7 +34,7 @@ const canvasToBlob = (canvas: HTMLCanvasElement, quality: number): Promise<Blob>
         }
         resolve(blob);
       },
-      'image/jpeg',
+      format,
       quality,
     );
   });
@@ -51,6 +51,9 @@ export const compressImageToDataUrl = async (file: File): Promise<string> => {
   const img = await loadImageFromFile(file);
   const { width, height } = resizeDimensions(img.width, img.height);
 
+  const supportsTransparency = file.type === 'image/png' || file.type === 'image/webp';
+  const outputFormat = supportsTransparency ? 'image/webp' : 'image/jpeg';
+
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -60,17 +63,18 @@ export const compressImageToDataUrl = async (file: File): Promise<string> => {
     throw new Error('Canvas nuk u inicializua.');
   }
 
-  // JPEG nuk ruan transparencë; pa këtë disa logo PNG dalin me sfond të zi.
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, height);
+  if (!supportsTransparency) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+  }
   ctx.drawImage(img, 0, 0, width, height);
 
   let quality = 0.85;
-  let compressed = await canvasToBlob(canvas, quality);
+  let compressed = await canvasToBlob(canvas, quality, outputFormat);
 
   while (compressed.size > TARGET_MAX_BYTES && quality > MIN_QUALITY) {
     quality -= 0.1;
-    compressed = await canvasToBlob(canvas, quality);
+    compressed = await canvasToBlob(canvas, quality, outputFormat);
   }
 
   return blobToDataUrl(compressed);

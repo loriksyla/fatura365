@@ -10,6 +10,8 @@ interface DashboardProps {
   invoices: SavedInvoice[];
   onAddBusiness: (biz: Omit<Business, 'id'>) => Promise<void>;
   onAddClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  onUpdateBusiness: (id: string, biz: Omit<Business, 'id'>) => Promise<void>;
+  onUpdateClient: (id: string, client: Omit<Client, 'id'>) => Promise<void>;
   onDeleteBusiness: (id: string) => Promise<void>;
   onDeleteClient: (id: string) => Promise<void>;
   onEditInvoice: (invoice: SavedInvoice) => void;
@@ -25,6 +27,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   invoices,
   onAddBusiness,
   onAddClient,
+  onUpdateBusiness,
+  onUpdateClient,
   onDeleteBusiness,
   onDeleteClient,
   onEditInvoice,
@@ -38,6 +42,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [formError, setFormError] = useState('');
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
 
   const [newBusiness, setNewBusiness] = useState<Omit<Business, 'id'>>({
     name: '', nuis: '', address: '', bank: '', email: '', logo: '',
@@ -79,6 +85,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const handleEditBusinessClick = (e: React.MouseEvent, biz: Business) => {
+    e.stopPropagation();
+    setFormError('');
+    setEditingBusinessId(biz.id);
+    setNewBusiness({
+      name: biz.name,
+      nuis: biz.nuis,
+      address: biz.address,
+      bank: biz.bank,
+      email: biz.email,
+      logo: biz.logo || '',
+    });
+    setShowBusinessModal(true);
+  };
+
   const handleDeleteClientClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm('A je i sigurt që don me fshi këtë klient?')) return;
@@ -88,6 +109,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Nuk u fshi klienti.');
     }
+  };
+
+  const handleEditClientClick = (e: React.MouseEvent, client: Client) => {
+    e.stopPropagation();
+    setFormError('');
+    setEditingClientId(client.id);
+    setNewClient({
+      name: client.name,
+      nuis: client.nuis,
+      address: client.address,
+      email: client.email,
+    });
+    setShowClientModal(true);
   };
 
   const handleDeleteInvoiceClick = async (id: string) => {
@@ -156,8 +190,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setFormError('');
 
     try {
-      await onAddBusiness(newBusiness);
+      if (editingBusinessId) {
+        await onUpdateBusiness(editingBusinessId, newBusiness);
+      } else {
+        await onAddBusiness(newBusiness);
+      }
       setNewBusiness({ name: '', nuis: '', address: '', bank: '', email: '', logo: '' });
+      setEditingBusinessId(null);
       setShowBusinessModal(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Nuk u ruajt biznesi.');
@@ -172,8 +211,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setFormError('');
 
     try {
-      await onAddClient(newClient);
+      if (editingClientId) {
+        await onUpdateClient(editingClientId, newClient);
+      } else {
+        await onAddClient(newClient);
+      }
       setNewClient({ name: '', nuis: '', address: '', email: '' });
+      setEditingClientId(null);
       setShowClientModal(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Nuk u ruajt klienti.');
@@ -210,7 +254,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-800">Bizneset e mia</h2>
-              <button onClick={() => { setFormError(''); setShowBusinessModal(true); }} className="text-sm text-blue-600 font-medium">Shto</button>
+              <button
+                onClick={() => { setFormError(''); setEditingBusinessId(null); setShowBusinessModal(true); }}
+                className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+              >
+                <i className="fas fa-plus text-[10px]" /> Shto
+              </button>
             </div>
             <div className="space-y-3">
               {businesses.map((biz) => (
@@ -220,13 +269,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <h3 className="font-semibold text-gray-900 text-sm">{biz.name}</h3>
                       <p className="text-xs text-gray-500">{biz.nuis}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteBusinessClick(e, biz.id)}
-                      className="text-xs text-red-600 hover:text-red-700"
-                    >
-                      Fshij
-                    </button>
+                    <div className="inline-flex items-center rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                      <button
+                        type="button"
+                        onClick={(e) => handleEditBusinessClick(e, biz)}
+                        className="px-2.5 py-1.5 text-xs text-blue-700 hover:bg-blue-50 border-r border-gray-200"
+                      >
+                        <i className="fas fa-pen mr-1 text-[10px]" /> Edito
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteBusinessClick(e, biz.id)}
+                        className="px-2.5 py-1.5 text-xs text-red-700 hover:bg-red-50"
+                      >
+                        <i className="fas fa-trash mr-1 text-[10px]" /> Fshij
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -236,7 +294,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-800">Klientët e mi</h2>
-              <button onClick={() => { setFormError(''); setShowClientModal(true); }} className="text-sm text-blue-600 font-medium">Shto</button>
+              <button
+                onClick={() => { setFormError(''); setEditingClientId(null); setShowClientModal(true); }}
+                className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+              >
+                <i className="fas fa-plus text-[10px]" /> Shto
+              </button>
             </div>
             <div className="space-y-3">
               {clients.map((client) => (
@@ -246,13 +309,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <h3 className="font-semibold text-gray-900 text-sm">{client.name}</h3>
                       <p className="text-xs text-gray-500">{client.nuis}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteClientClick(e, client.id)}
-                      className="text-xs text-red-600 hover:text-red-700"
-                    >
-                      Fshij
-                    </button>
+                    <div className="inline-flex items-center rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                      <button
+                        type="button"
+                        onClick={(e) => handleEditClientClick(e, client)}
+                        className="px-2.5 py-1.5 text-xs text-blue-700 hover:bg-blue-50 border-r border-gray-200"
+                      >
+                        <i className="fas fa-pen mr-1 text-[10px]" /> Edito
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteClientClick(e, client.id)}
+                        className="px-2.5 py-1.5 text-xs text-red-700 hover:bg-red-50"
+                      >
+                        <i className="fas fa-trash mr-1 text-[10px]" /> Fshij
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -341,7 +413,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="relative min-h-screen flex items-end sm:items-center justify-center p-4 pointer-events-none">
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Regjistro Biznes të Ri</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{editingBusinessId ? 'Përditëso Biznesin' : 'Regjistro Biznes të Ri'}</h3>
                 {!!formError && <div className="mb-3 text-sm bg-red-50 border border-red-100 text-red-700 p-2 rounded">{formError}</div>}
                 <form onSubmit={handleAddBusinessSubmit} className="space-y-4">
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50">
@@ -363,8 +435,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <input type="text" value={newBusiness.bank} onChange={(e) => setNewBusiness({ ...newBusiness, bank: e.target.value })} placeholder="IBAN" className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" />
                   <textarea rows={2} required value={newBusiness.address} onChange={(e) => setNewBusiness({ ...newBusiness, address: e.target.value })} placeholder="Adresa" className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" />
                   <div className="mt-5 sm:mt-6 flex gap-3">
-                    <button type="submit" disabled={isSaving} className="w-full rounded-md px-4 py-2 bg-blue-600 text-white">{isSaving ? 'Duke ruajtur...' : 'Ruaj'}</button>
-                    <button type="button" onClick={() => setShowBusinessModal(false)} className="w-full rounded-md border border-gray-300 px-4 py-2">Anulo</button>
+                    <button type="submit" disabled={isSaving} className="w-full rounded-md px-4 py-2 bg-blue-600 text-white">{isSaving ? 'Duke ruajtur...' : editingBusinessId ? 'Përditëso' : 'Ruaj'}</button>
+                    <button type="button" onClick={() => { setShowBusinessModal(false); setEditingBusinessId(null); }} className="w-full rounded-md border border-gray-300 px-4 py-2">Anulo</button>
                   </div>
                 </form>
               </div>
@@ -379,7 +451,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="relative min-h-screen flex items-end sm:items-center justify-center p-4 pointer-events-none">
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Shto Klient të Ri</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{editingClientId ? 'Përditëso Klientin' : 'Shto Klient të Ri'}</h3>
                 {!!formError && <div className="mb-3 text-sm bg-red-50 border border-red-100 text-red-700 p-2 rounded">{formError}</div>}
                 <form onSubmit={handleAddClientSubmit} className="space-y-4">
                   <input type="text" required value={newClient.name} onChange={(e) => setNewClient({ ...newClient, name: e.target.value })} placeholder="Emri i klientit" className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" />
@@ -387,8 +459,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <input type="email" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} placeholder="Email" className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" />
                   <textarea rows={2} value={newClient.address} onChange={(e) => setNewClient({ ...newClient, address: e.target.value })} placeholder="Adresa" className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3" />
                   <div className="mt-5 sm:mt-6 flex gap-3">
-                    <button type="submit" disabled={isSaving} className="w-full rounded-md px-4 py-2 bg-emerald-600 text-white">{isSaving ? 'Duke ruajtur...' : 'Ruaj'}</button>
-                    <button type="button" onClick={() => setShowClientModal(false)} className="w-full rounded-md border border-gray-300 px-4 py-2">Anulo</button>
+                    <button type="submit" disabled={isSaving} className="w-full rounded-md px-4 py-2 bg-emerald-600 text-white">{isSaving ? 'Duke ruajtur...' : editingClientId ? 'Përditëso' : 'Ruaj'}</button>
+                    <button type="button" onClick={() => { setShowClientModal(false); setEditingClientId(null); }} className="w-full rounded-md border border-gray-300 px-4 py-2">Anulo</button>
                   </div>
                 </form>
               </div>

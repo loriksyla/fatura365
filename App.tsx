@@ -5,6 +5,7 @@ import { InvoicePreview } from './components/InvoicePreview';
 import { AuthPage } from './components/AuthPage';
 import { Dashboard } from './components/Dashboard';
 import { AdBanner } from './components/AdBanner';
+import { A4PreviewFrame } from './components/A4PreviewFrame';
 import { configureAmplify } from './services/amplifyConfig';
 import { getSessionUser, logoutUser } from './services/authService';
 import {
@@ -354,8 +355,12 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="border border-gray-200 shadow-lg sm:shadow-xl print:border-none print:shadow-none overflow-x-auto">
-                  <InvoicePreview data={invoice} />
+                <div className="rounded-xl border border-slate-200 bg-slate-100/70 p-2 sm:p-4 md:p-6 shadow-lg sm:shadow-xl print:border-none print:shadow-none">
+                  <div className="mx-auto w-full max-w-[860px]">
+                    <A4PreviewFrame>
+                      <InvoicePreview data={invoice} />
+                    </A4PreviewFrame>
+                  </div>
                 </div>
               </div>
             </div>

@@ -44,6 +44,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [selectedClientId, setSelectedClientId] = useState('');
   const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<null | {
+    type: 'business' | 'client' | 'invoice';
+    id: string;
+    message: string;
+  }>(null);
 
   const [newBusiness, setNewBusiness] = useState<Omit<Business, 'id'>>({
     name: '', nuis: '', address: '', bank: '', email: '', logo: '',
@@ -76,13 +81,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const handleDeleteBusinessClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('A je i sigurt që don me fshi këtë biznes?')) return;
-    setFormError('');
-    try {
-      await onDeleteBusiness(id);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Nuk u fshi biznesi.');
-    }
+    setConfirmAction({
+      type: 'business',
+      id,
+      message: 'A je i sigurt që don me fshi këtë biznes?',
+    });
   };
 
   const handleEditBusinessClick = (e: React.MouseEvent, biz: Business) => {
@@ -102,13 +105,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const handleDeleteClientClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('A je i sigurt që don me fshi këtë klient?')) return;
-    setFormError('');
-    try {
-      await onDeleteClient(id);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Nuk u fshi klienti.');
-    }
+    setConfirmAction({
+      type: 'client',
+      id,
+      message: 'A je i sigurt që don me fshi këtë klient?',
+    });
   };
 
   const handleEditClientClick = (e: React.MouseEvent, client: Client) => {
@@ -125,12 +126,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleDeleteInvoiceClick = async (id: string) => {
-    if (!confirm('A je i sigurt që don me fshi këtë faturë?')) return;
+    setConfirmAction({
+      type: 'invoice',
+      id,
+      message: 'A je i sigurt që don me fshi këtë faturë?',
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmAction) return;
     setFormError('');
+
     try {
-      await onDeleteInvoice(id);
+      if (confirmAction.type === 'business') {
+        await onDeleteBusiness(confirmAction.id);
+      } else if (confirmAction.type === 'client') {
+        await onDeleteClient(confirmAction.id);
+      } else {
+        await onDeleteInvoice(confirmAction.id);
+      }
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Nuk u fshi fatura.');
+      if (confirmAction.type === 'business') {
+        setFormError(err instanceof Error ? err.message : 'Nuk u fshi biznesi.');
+      } else if (confirmAction.type === 'client') {
+        setFormError(err instanceof Error ? err.message : 'Nuk u fshi klienti.');
+      } else {
+        setFormError(err instanceof Error ? err.message : 'Nuk u fshi fatura.');
+      }
+    } finally {
+      setConfirmAction(null);
     }
   };
 
@@ -411,7 +435,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-gray-500/75" onClick={() => setShowBusinessModal(false)} />
           <div className="relative min-h-screen flex items-end sm:items-center justify-center p-4 pointer-events-none">
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
+            <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl border border-slate-200 sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{editingBusinessId ? 'Përditëso Biznesin' : 'Regjistro Biznes të Ri'}</h3>
                 {!!formError && <div className="mb-3 text-sm bg-red-50 border border-red-100 text-red-700 p-2 rounded">{formError}</div>}
@@ -449,7 +473,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-gray-500/75" onClick={() => setShowClientModal(false)} />
           <div className="relative min-h-screen flex items-end sm:items-center justify-center p-4 pointer-events-none">
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
+            <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl border border-slate-200 sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">{editingClientId ? 'Përditëso Klientin' : 'Shto Klient të Ri'}</h3>
                 {!!formError && <div className="mb-3 text-sm bg-red-50 border border-red-100 text-red-700 p-2 rounded">{formError}</div>}
@@ -473,7 +497,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-gray-500/75" onClick={() => setShowCreateInvoiceModal(false)} />
           <div className="relative min-h-screen flex items-end sm:items-center justify-center p-4 pointer-events-none">
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
+            <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl border border-slate-200 sm:my-8 sm:max-w-lg sm:w-full pointer-events-auto">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 space-y-4">
                 <h3 className="text-lg font-medium text-gray-900">Krijo Faturë të Re</h3>
                 <p className="text-sm text-gray-500">
@@ -529,6 +553,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmAction && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm" onClick={() => setConfirmAction(null)} />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="p-5 sm:p-6">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Konfirmo veprimin</h3>
+              <p className="text-slate-600">{confirmAction.message}</p>
+            </div>
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                Anulo
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Fshij
+              </button>
             </div>
           </div>
         </div>

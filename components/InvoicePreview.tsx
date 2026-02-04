@@ -34,8 +34,8 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
 
   return (
     // A4 Dimensions: approx 210mm x 297mm.
-    <div id="invoice-preview" className="bg-white mx-auto shadow-lg text-gray-800 text-sm print:shadow-none print:m-0 print:w-full relative flex flex-col" 
-         style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', padding: '20mm', boxSizing: 'border-box', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+    <div id="invoice-preview" className="bg-white mx-auto shadow-lg text-gray-800 text-sm print:shadow-none print:m-0 print:w-full relative flex flex-col"
+         style={{ width: '100%', maxWidth: '210mm', minHeight: '297mm', padding: '14mm', boxSizing: 'border-box', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
       
       {/* Header */}
       <div className="flex justify-between items-start mb-12">
